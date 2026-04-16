@@ -7,6 +7,7 @@ from typing import Final
 
 import pandas as pd
 
+from app.llm.client import generate_grounded_answer_result
 from app.rag.ingest import Chunk
 from app.rag.retriever import ScoredChunk
 from app.rag.retriever import retrieve_top_k
@@ -67,17 +68,24 @@ def answer_financial_question(
         risks = [*risks, "No relevant local context was retrieved for this question."]
 
     retrieved_context = [build_retrieved_context_item(chunk) for chunk in retrieved_chunks]
-    summary = build_summary(price_series, supporting_signals, retrieved_context)
+    deterministic_summary = build_summary(price_series, supporting_signals, retrieved_context)
+    summary_result = generate_grounded_answer_result(
+        question=validated_question,
+        supporting_signals=supporting_signals,
+        retrieved_context_texts=[item.text for item in retrieved_context],
+        fallback_summary=deterministic_summary,
+    )
     tool_trace = build_tool_trace(
         price_observation_count=len(price_series),
         requested_top_k=validated_top_k,
         retrieved_count=len(retrieved_context),
         signal_count=len(supporting_signals),
+        summary_source=summary_result.source,
     )
 
     return build_agent_response(
         question=validated_question,
-        summary=summary,
+        summary=summary_result.summary,
         supporting_signals=supporting_signals,
         risks=risks,
         retrieved_context=retrieved_context,
@@ -145,6 +153,7 @@ def build_tool_trace(
     requested_top_k: int,
     retrieved_count: int,
     signal_count: int,
+    summary_source: str,
 ) -> list[ToolTraceStep]:
     """Build a simple trace of orchestration steps."""
     return [
@@ -164,7 +173,11 @@ def build_tool_trace(
             status="completed",
             details=f"Derived {signal_count} deterministic financial signal(s).",
         ),
-        ToolTraceStep(step="build_response", status="completed", details="Built grounded structured response."),
+        ToolTraceStep(
+            step="build_response",
+            status="completed",
+            details=f"Built grounded structured response using {summary_source}.",
+        ),
     ]
 
 

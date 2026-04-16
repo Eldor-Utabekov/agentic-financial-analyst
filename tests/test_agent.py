@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 import pandas as pd
 
 from app.llm.agent import AgentResponse
 from app.llm.agent import answer_financial_question
+from app.llm.client import SummaryGenerationResult
 from app.rag.ingest import Chunk
 
 
@@ -65,6 +67,24 @@ class AnswerFinancialQuestionTests(unittest.TestCase):
         self.assertGreaterEqual(len(response.supporting_signals), 1)
         self.assertGreaterEqual(len(response.retrieved_context), 1)
         self.assertEqual(len(response.tool_trace), 5)
+
+    @patch("app.llm.agent.generate_grounded_answer_result")
+    def test_answer_financial_question_uses_provider_backed_summary_when_available(self, mock_generate: object) -> None:
+        mock_generate.return_value = SummaryGenerationResult(
+            summary="Provider-backed grounded summary.",
+            source="provider_backed",
+        )
+
+        response = answer_financial_question(
+            question="What signals matter for this ETF?",
+            price_data=_sample_price_data(),
+            chunks=_sample_chunks(),
+            top_k=2,
+        )
+
+        self.assertEqual(response.summary, "Provider-backed grounded summary.")
+        mock_generate.assert_called_once()
+        self.assertIn("provider_backed", response.tool_trace[-1].details)
 
     def test_answer_financial_question_rejects_empty_question(self) -> None:
         with self.assertRaisesRegex(ValueError, "question must not be empty"):
@@ -127,6 +147,17 @@ class AnswerFinancialQuestionTests(unittest.TestCase):
         self.assertEqual(len(response.retrieved_context), 1)
         self.assertGreater(response.retrieved_context[0].score, 0.0)
         self.assertTrue(response.retrieved_context[0].text)
+
+    def test_answer_financial_question_preserves_deterministic_fallback_without_api_key(self) -> None:
+        response = answer_financial_question(
+            question="ETF momentum improved",
+            price_data=_sample_price_data(),
+            chunks=_sample_chunks(),
+            top_k=1,
+        )
+
+        self.assertIn("Latest close is 106.00.", response.summary)
+        self.assertIn("deterministic_fallback", response.tool_trace[-1].details)
 
 
 if __name__ == "__main__":

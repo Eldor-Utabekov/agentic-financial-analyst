@@ -1,6 +1,8 @@
 # Agentic Financial Analyst
 
-Production-style backend system for grounded financial question answering, combining deterministic analytics, retrieval, and agent orchestration.- deterministic ETF analytics
+Production-style backend system for grounded financial question answering, combining deterministic analytics, retrieval, agent orchestration, and optional provider-backed answer generation.
+
+- deterministic ETF analytics
 - local document retrieval
 - an inspectable orchestration layer
 - a minimal FastAPI API
@@ -22,11 +24,12 @@ Implemented now:
 - deterministic analytics for returns, volatility, momentum, and drawdown
 - local-first text ingestion and chunking
 - deterministic lexical retrieval
-- provider-agnostic orchestration layer (ready for future LLM integration)- FastAPI `health` and `ask` endpoints
+- provider-agnostic orchestration layer with deterministic fallback behavior
+- optional provider-backed summary generation
+- FastAPI `health` and `ask` endpoints
 - lightweight local evaluation utilities
 
 Not implemented yet:
-- live LLM provider integration
 - embeddings or vector database retrieval
 - richer evaluation datasets
 - deployment infrastructure beyond a simple local Docker setup
@@ -39,7 +42,8 @@ The current request flow is:
 2. The API validates the payload with Pydantic and converts `price_data` into a pandas `DataFrame`.
 3. The agent orchestration layer retrieves relevant context with the baseline lexical retriever.
 4. Deterministic analytics are computed from the price series.
-5. A structured grounded response is returned with supporting signals, risks, retrieved context, and tool trace.
+5. The agent produces a deterministic grounded summary and can optionally upgrade that summary through a provider-backed LLM call when configured.
+6. A structured grounded response is returned with supporting signals, risks, retrieved context, and tool trace.
 
 ## Key Skills Demonstrated
 
@@ -63,6 +67,8 @@ The current request flow is:
   Ranks chunks with deterministic lexical overlap scoring.
 - `app/llm/agent.py`
   Orchestrates retrieval plus deterministic analytics into a structured answer.
+- `app/llm/client.py`
+  Optionally calls an OpenAI-compatible endpoint for grounded answer generation and falls back to deterministic output when no API key is configured.
 - `app/llm/evaluator.py`
   Evaluates agent runs with lightweight local checks.
 - `app/api/routes.py`
@@ -132,6 +138,14 @@ cp .env.example .env
 ```
 
 Current runtime configuration is intentionally minimal. No live provider key is required for the implemented phases.
+
+Optional provider-backed answer generation can be enabled with:
+
+```bash
+export OPENAI_API_KEY=your_api_key
+export OPENAI_MODEL=gpt-4o-mini
+export OPENAI_BASE_URL=https://api.openai.com/v1/chat/completions
+```
 
 ## Run Locally
 
@@ -249,7 +263,7 @@ This is intentionally a practical utility for regression checks, not a benchmark
 ## Current Limitations
 
 - Retrieval is simple lexical overlap, not embedding-based semantic search.
-- The agent does not call a live LLM yet.
+- Provider-backed answer generation is optional and only runs when environment configuration is supplied.
 - The API expects callers to provide price data and chunks directly.
 - The current answer synthesis is deterministic and intentionally conservative.
 - No persistence layer or production deployment configuration is included beyond the simple local container.
