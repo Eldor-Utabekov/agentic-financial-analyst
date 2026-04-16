@@ -1,5 +1,20 @@
-.venv/
+# Python
 __pycache__/
-.env
 *.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+env/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Environment
+.env
+
+# Conda
+*.conda
+*.tar.bz2

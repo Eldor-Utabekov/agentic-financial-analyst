@@ -1,208 +1,262 @@
-# Portfolio Model Lab
+# Agentic Financial Analyst
 
-End-to-end machine learning pipeline for building and evaluating ETF portfolio strategies.
+Production-style backend system for grounded financial question answering, combining deterministic analytics, retrieval, and agent orchestration.- deterministic ETF analytics
+- local document retrieval
+- an inspectable orchestration layer
+- a minimal FastAPI API
 
----
+## Why This Project Exists
 
-## Overview
+This project is designed to demonstrate practical backend engineering for AI-assisted financial analysis without hiding the logic behind heavyweight frameworks or opaque chains.
 
-This project implements a complete research workflow for:
+The focus is on:
+- clear deterministic tools
+- grounded retrieval
+- readable orchestration
+- testable service boundaries
 
-* predicting short-horizon ETF returns
-* converting predictions into portfolio allocations
-* evaluating strategies using walk-forward backtesting
-* comparing machine learning models against simple benchmarks
+## Current Status
 
-The key focus is not only predictive accuracy, but **whether models improve real investment outcomes**.
+Implemented now:
+- ETF market data retrieval utility
+- deterministic analytics for returns, volatility, momentum, and drawdown
+- local-first text ingestion and chunking
+- deterministic lexical retrieval
+- provider-agnostic orchestration layer (ready for future LLM integration)- FastAPI `health` and `ask` endpoints
+- lightweight local evaluation utilities
 
----
+Not implemented yet:
+- live LLM provider integration
+- embeddings or vector database retrieval
+- richer evaluation datasets
+- deployment infrastructure beyond a simple local Docker setup
 
-## Problem
+## Architecture Overview
 
-In financial modeling, minimizing prediction error (e.g., MSE) does not necessarily lead to better portfolio performance.
+The current request flow is:
 
-This project investigates:
+1. A client sends a question, price data, and local text chunks to `POST /ask`.
+2. The API validates the payload with Pydantic and converts `price_data` into a pandas `DataFrame`.
+3. The agent orchestration layer retrieves relevant context with the baseline lexical retriever.
+4. Deterministic analytics are computed from the price series.
+5. A structured grounded response is returned with supporting signals, risks, retrieved context, and tool trace.
 
-> Can machine learning models generate better risk-adjusted returns than simple allocation strategies?
+## Key Skills Demonstrated
 
----
+- Backend system design (FastAPI, modular architecture)
+- Building agent-style orchestration without frameworks
+- Retrieval-Augmented Generation (RAG) fundamentals
+- Deterministic financial analytics
+- API design and validation with Pydantic
+- Testing (unit + integration)
+- Evaluation of AI systems
 
-## Approach
+## Current Features
 
-The pipeline consists of the following steps:
-
-1. **Data ingestion**
-   ETF price data (OHLCV) is collected and stored locally.
-
-2. **Feature engineering**
-   Backward-looking features are constructed:
-
-   * lagged returns (1d, 5d, 20d)
-   * rolling volatility
-   * momentum
-   * moving-average ratios
-   * drawdown
-
-3. **Target construction**
-   The prediction target is the **next 5-day return** per asset.
-
-4. **Time-based split**
-   Data is split chronologically to prevent leakage.
-
-5. **Model training**
-   Multiple models are trained:
-
-   * Ridge Regression (baseline)
-   * Gradient Boosting
-   * Random Forest
-
-6. **Portfolio construction**
-   Predictions are transformed into:
-
-   * long-only weights
-   * normalized allocation across assets
-
-7. **Backtesting**
-
-   * daily revaluation of portfolio
-   * weights applied to next-day returns
-   * NAV and returns tracked over time
-
-8. **Evaluation**
-   Strategies are compared using:
-
-   * annualized return
-   * volatility
-   * Sharpe ratio
-   * max drawdown
-
-Benchmarks:
-
-* Equal-weight portfolio
-* Buy-and-hold SPY
-
----
-
-## Results
-
-### Model Comparison
-
-| Model                 | Test MSE     | Return | Volatility | Sharpe   | Max Drawdown |
-| --------------------- | ------------ | ------ | ---------- | -------- | ------------ |
-| GradientBoosting      | 0.000750     | 8.6%   | 15.3%      | **0.56** | -17.4%       |
-| RandomForest          | 0.000747     | 7.6%   | 15.2%      | 0.50     | **-16.7%**   |
-| GradientBoostingTuned | 0.000742     | 6.5%   | 14.5%      | 0.45     | -17.2%       |
-| Ridge                 | **0.000733** | 5.2%   | 14.9%      | 0.35     | -20.0%       |
-
-### Benchmarks
-
-| Strategy       | Return | Sharpe | Drawdown |
-| -------------- | ------ | ------ | -------- |
-| Equal Weight   | 3.6%   | 0.27   | -20.6%   |
-| SPY Buy & Hold | 9.1%   | 0.52   | -24.5%   |
-
----
-
-## Key Insights
-
-### 1. Prediction accuracy ≠ portfolio performance
-
-* Ridge achieved the **best MSE**, but the **worst investment performance**
-* Gradient Boosting had worse MSE but delivered the **highest Sharpe ratio**
-
-### 2. Model selection must be decision-driven
-
-* Evaluating models purely on prediction metrics would lead to the wrong choice
-* Portfolio-level evaluation is essential in financial ML
-
-### 3. Hyperparameter tuning can degrade results
-
-* Tuned Gradient Boosting improved MSE
-* But **reduced Sharpe and return**
-* Likely due to smoothing of predictive signals
-
-### 4. Different models capture different risk profiles
-
-* Gradient Boosting → best overall performance
-* Random Forest → lower drawdown, more stable
-* Ridge → weak signal, underperforms
-
-### 5. ML adds value, but not always versus market baseline
-
-* ML strategies outperform equal-weight allocation
-* But do not consistently outperform SPY on return
-* However, they can improve **risk-adjusted performance**
-
----
-
-## Strategy Performance
-
-The chart below shows cumulative portfolio NAV for each model.
-
-- Gradient Boosting achieves the strongest growth
-- Random Forest provides more stable performance
-- Tuned Gradient Boosting underperforms the untuned version
-- Ridge consistently lags behind
-
-![Strategy Comparison](reports/strategy_comparison.png)
-
----
+- `app/tools/market_data.py`
+  Fetches and normalizes ETF OHLCV history.
+- `app/tools/analytics.py`
+  Computes simple returns, log returns, rolling volatility, momentum, drawdown, and max drawdown.
+- `app/rag/ingest.py`
+  Loads local `.txt` and `.md` documents and builds simple overlapping chunks.
+- `app/rag/retriever.py`
+  Ranks chunks with deterministic lexical overlap scoring.
+- `app/llm/agent.py`
+  Orchestrates retrieval plus deterministic analytics into a structured answer.
+- `app/llm/evaluator.py`
+  Evaluates agent runs with lightweight local checks.
+- `app/api/routes.py`
+  Exposes `GET /health` and `POST /ask`.
 
 ## Project Structure
 
 ```text
-portfolio/
-├── data/
-│   ├── raw/
-│   └── processed/
-├── reports/
-│   ├── strategy_comparison.png
-│   └── model_comparison.csv
-├── src/
-│   └── portfolio_model_lab/
-│       ├── data/
-│       ├── features/
-│       ├── models/
-│       ├── portfolio/
-│       └── backtest/
-├── README.md
-└── requirements.txt
+app/
+  api/
+    routes.py
+  llm/
+    agent.py
+    evaluator.py
+    prompts.py
+  rag/
+    ingest.py
+    retriever.py
+  tools/
+    analytics.py
+    market_data.py
+  main.py
+tests/
+  test_agent.py
+  test_analytics.py
+  test_api.py
+  test_evaluator.py
+  test_market_data.py
+  test_rag_ingest.py
+  test_rag_retriever.py
 ```
 
----
+## Setup
 
-## How to Run
+Use Python 3.11.
+
+### Create an environment
 
 ```bash
-set PYTHONPATH=src
-python -m portfolio_model_lab.models.train_model
+python -m venv .venv
 ```
 
----
+Windows PowerShell:
 
-## Future Improvements
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
 
-* transaction cost modeling
-* turnover constraints
-* risk-aware portfolio optimization (mean-variance, risk budgets)
-* additional features (macro, cross-asset signals)
-* model ensembling
-* regime detection
+macOS/Linux:
 
----
+```bash
+source .venv/bin/activate
+```
 
-## Final Note
+### Install dependencies
 
-This project demonstrates a key principle:
+```bash
+pip install -r requirements.txt
+```
 
-> The best model is not the one with the lowest error — it is the one that improves the final decision outcome.
+## Environment Setup
 
-In this case, evaluating models at the portfolio level revealed insights that would be missed using traditional ML metrics alone.
+Copy `.env.example` to `.env` if you want a local environment file:
 
-## Development Notes
+```bash
+cp .env.example .env
+```
 
-Parts of the implementation and refactoring were completed with the assistance of AI tools (OpenAI Codex) to improve code quality and development efficiency.
+Current runtime configuration is intentionally minimal. No live provider key is required for the implemented phases.
 
-Project design, analytical approach, and validation of results were independently developed and reviewed by the author.
+## Run Locally
 
-Skills - [AGENTS.md](https://github.com/Eldor-Utabekov/portfolio-model-lab/blob/main/AGENTS.md)
+Start the API with Uvicorn:
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+## Run Tests
+
+Run the full local test suite:
+
+```bash
+python -m unittest discover -s tests
+```
+
+## Run with Docker
+
+Build the image:
+
+```bash
+docker build -t financial-agent .
+
+
+## API Usage
+
+### Health Check
+
+Request:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+Example response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+### Ask Endpoint
+
+Request:
+
+```bash
+curl -X POST http://127.0.0.1:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What signals matter for this ETF?",
+    "price_data": [
+      {"date": "2024-01-01", "close": 100.0, "symbol": "SPY"},
+      {"date": "2024-01-02", "close": 102.0, "symbol": "SPY"},
+      {"date": "2024-01-03", "close": 101.0, "symbol": "SPY"},
+      {"date": "2024-01-04", "close": 104.0, "symbol": "SPY"},
+      {"date": "2024-01-05", "close": 106.0, "symbol": "SPY"}
+    ],
+    "chunks": [
+      {
+        "chunk_id": "chunk-1",
+        "source": "doc1.txt",
+        "text": "ETF momentum improved as inflows increased this week.",
+        "metadata": {"file_name": "doc1.txt"}
+      },
+      {
+        "chunk_id": "chunk-2",
+        "source": "doc2.txt",
+        "text": "Drawdown risk remains manageable for diversified ETFs.",
+        "metadata": {"file_name": "doc2.txt"}
+      }
+    ],
+    "top_k": 2
+  }'
+```
+
+Response shape:
+
+```json
+{
+  "question": "What signals matter for this ETF?",
+  "summary": "Latest close is 106.00. ...",
+  "supporting_signals": ["..."],
+  "risks": ["..."],
+  "retrieved_context": [
+    {
+      "chunk_id": "chunk-1",
+      "source": "doc1.txt",
+      "score": 0.5,
+      "text": "ETF momentum improved as inflows increased this week."
+    }
+  ],
+  "tool_trace": [
+    {
+      "step": "validate_question",
+      "status": "completed",
+      "details": "Validated non-empty user question."
+    }
+  ]
+}
+```
+
+## Evaluation Overview
+
+`app/llm/evaluator.py` provides a small local evaluation layer for the current agent. It checks:
+- whether the orchestration completed successfully
+- whether a summary is present
+- whether a tool trace exists
+- how many supporting signals, risks, and retrieved context items were produced
+- whether expected tool steps matched, when provided
+
+This is intentionally a practical utility for regression checks, not a benchmarking framework.
+
+## Current Limitations
+
+- Retrieval is simple lexical overlap, not embedding-based semantic search.
+- The agent does not call a live LLM yet.
+- The API expects callers to provide price data and chunks directly.
+- The current answer synthesis is deterministic and intentionally conservative.
+- No persistence layer or production deployment configuration is included beyond the simple local container.
+
+## Next Steps
+
+- add a local vector store or embedding-backed retrieval layer
+- integrate an LLM provider behind the existing orchestration boundary
+- add richer evaluation cases and datasets
+- expand API schemas and error reporting as the service surface grows

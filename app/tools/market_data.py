@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from datetime import datetime
 from datetime import timedelta
 from typing import Final
-from typing import cast
 
 import pandas as pd
 
@@ -44,9 +42,7 @@ class PriceHistoryRequest:
     def validate(self) -> None:
         """Validate the request fields before fetching market data."""
         self.normalized_symbol()
-        normalized_start_date = _normalize_request_date(self.start_date, field_name="start_date")
-        normalized_end_date = _normalize_request_date(self.end_date, field_name="end_date")
-        if normalized_start_date > normalized_end_date:
+        if self.start_date > self.end_date:
             raise ValueError("start_date must be on or before end_date.")
 
 
@@ -64,8 +60,8 @@ def fetch_price_history(
 
     request = PriceHistoryRequest(
         symbol=symbol,
-        start_date=_normalize_request_date(start_date, field_name="start_date"),
-        end_date=_normalize_request_date(end_date, field_name="end_date"),
+        start_date=start_date,
+        end_date=end_date,
         interval=interval,
     )
     request.validate()
@@ -110,23 +106,26 @@ def _normalize_price_history(raw_prices: pd.DataFrame, symbol: str) -> pd.DataFr
         missing_str = ", ".join(missing_columns)
         raise MarketDataError(f"Missing required price columns: {missing_str}.")
 
-    normalized = raw_prices.loc[:, list(REQUIRED_PRICE_COLUMNS)].rename(
-        columns={
-            "Open": "open",
-            "High": "high",
-            "Low": "low",
-            "Close": "close",
-            "Adj Close": "adj_close",
-            "Volume": "volume",
-        }
+    normalized = (
+        raw_prices.loc[:, list(REQUIRED_PRICE_COLUMNS)]
+        .rename(
+            columns={
+                "Open": "open",
+                "High": "high",
+                "Low": "low",
+                "Close": "close",
+                "Adj Close": "adj_close",
+                "Volume": "volume",
+            }
+        )
+        .reset_index()
+        .rename(columns={"Date": "date", "index": "date"})
     )
-    normalized = normalized.reset_index()
-    normalized = normalized.rename(columns={normalized.columns[0]: "date"})
 
-    normalized["date"] = pd.Series(
-        [_normalize_timestamp(value) for value in normalized["date"]],
-        index=normalized.index,
-    )
+    dates = pd.to_datetime(normalized["date"])
+    if getattr(dates.dt, "tz", None) is not None:
+        dates = dates.dt.tz_localize(None)
+    normalized["date"] = dates
     normalized["symbol"] = symbol
 
     ordered_columns = [
@@ -141,22 +140,3 @@ def _normalize_price_history(raw_prices: pd.DataFrame, symbol: str) -> pd.DataFr
     ]
 
     return normalized.loc[:, ordered_columns].sort_values("date").reset_index(drop=True)
-
-
-def _normalize_request_date(value: date, field_name: str) -> date:
-    """Normalize supported date-like inputs to a plain date."""
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, pd.Timestamp):
-        return value.date()
-    if isinstance(value, date):
-        return value
-    raise TypeError(f"{field_name} must be a date-like value.")
-
-
-def _normalize_timestamp(value: object) -> pd.Timestamp:
-    """Normalize index values to timezone-naive pandas timestamps."""
-    timestamp = pd.Timestamp(value)
-    if timestamp.tzinfo is not None:
-        return cast(pd.Timestamp, timestamp.tz_localize(None))
-    return timestamp
