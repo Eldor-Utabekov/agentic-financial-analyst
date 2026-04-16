@@ -260,3 +260,11 @@ This is intentionally a practical utility for regression checks, not a benchmark
 - integrate an LLM provider behind the existing orchestration boundary
 - add richer evaluation cases and datasets
 - expand API schemas and error reporting as the service surface grows
+
+## Development Approach
+
+This project was developed with the assistance of generative AI tools for iterative coding and refinement.
+
+The system design, architecture, and implementation decisions were driven intentionally, with a focus on clarity, testability, and avoiding unnecessary abstraction.
+
+AGENTS.md - https://github.com/Eldor-Utabekov/agentic-financial-analyst/blob/main/AGENTS.md
