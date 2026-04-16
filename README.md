@@ -1,78 +1,126 @@
 # Agentic Financial Analyst
 
-Production-style backend system for grounded financial question answering, combining deterministic analytics, retrieval, agent orchestration, and optional provider-backed answer generation.
+Production-style backend system for grounded financial question answering, combining deterministic analytics, retrieval, agent orchestration, and optional provider-backed LLM generation.
 
-- deterministic ETF analytics
-- local document retrieval
-- an inspectable orchestration layer
-- a minimal FastAPI API
+- deterministic ETF analytics  
+- local document retrieval (RAG baseline)  
+- inspectable agent orchestration  
+- optional LLM integration with safe fallback  
+- minimal FastAPI service  
+
+---
 
 ## Why This Project Exists
 
-This project is designed to demonstrate practical backend engineering for AI-assisted financial analysis without hiding the logic behind heavyweight frameworks or opaque chains.
+This project demonstrates how to build **AI-powered systems in a controlled, production-oriented way**, without relying on opaque frameworks.
 
-The focus is on:
-- clear deterministic tools
-- grounded retrieval
-- readable orchestration
-- testable service boundaries
+Instead of “black-box AI”, it emphasizes:
+- deterministic computation first  
+- retrieval grounding  
+- transparent orchestration  
+- strict validation and testability  
+
+This reflects real-world GenAI system design: **LLMs as optional components, not the core logic.**
+
+---
+
+Given:
+- ETF price data  
+- related text context  
+
+the system:
+- computes financial signals (returns, volatility, momentum, drawdown)  
+- retrieves relevant context  
+- generates a grounded answer (deterministic or LLM-backed)  
+
+All steps are transparent, testable, and inspectable.
+
+---
 
 ## Current Status
 
-Implemented now:
-- ETF market data retrieval utility
-- deterministic analytics for returns, volatility, momentum, and drawdown
-- local-first text ingestion and chunking
-- deterministic lexical retrieval
-- provider-agnostic orchestration layer with deterministic fallback behavior
-- optional provider-backed summary generation
-- FastAPI `health` and `ask` endpoints
-- lightweight local evaluation utilities
+### Implemented
+- ETF market data retrieval utility  
+- deterministic analytics (returns, volatility, momentum, drawdown)  
+- local-first document ingestion and chunking  
+- lexical retrieval baseline (RAG)  
+- agent orchestration layer (fully inspectable)  
+- optional provider-backed LLM answer generation  
+- deterministic fallback when LLM is unavailable  
+- FastAPI API (`/health`, `/ask`)  
+- unit + integration tests  
+- lightweight evaluation framework  
 
-Not implemented yet:
-- embeddings or vector database retrieval
-- richer evaluation datasets
-- deployment infrastructure beyond a simple local Docker setup
+### Not implemented (by design)
+- embedding-based retrieval / vector DB  
+- large-scale evaluation datasets  
+- production deployment infrastructure  
+
+---
 
 ## Architecture Overview
 
-The current request flow is:
+Request flow:
 
-1. A client sends a question, price data, and local text chunks to `POST /ask`.
-2. The API validates the payload with Pydantic and converts `price_data` into a pandas `DataFrame`.
-3. The agent orchestration layer retrieves relevant context with the baseline lexical retriever.
-4. Deterministic analytics are computed from the price series.
-5. The agent produces a deterministic grounded summary and can optionally upgrade that summary through a provider-backed LLM call when configured.
-6. A structured grounded response is returned with supporting signals, risks, retrieved context, and tool trace.
+1. Client sends:
+   - question  
+   - price data  
+   - local text chunks  
+
+2. API layer:
+   - validates input via Pydantic  
+   - converts price data → pandas DataFrame  
+
+3. Retrieval:
+   - lexical scoring of chunks  
+   - top-k selection  
+
+4. Deterministic analytics:
+   - returns  
+   - momentum  
+   - volatility  
+   - drawdown  
+
+5. Answer generation:
+   - deterministic grounded summary  
+   - optionally upgraded via LLM (if configured)  
+   - safe fallback if provider fails  
+
+6. Response:
+   - summary  
+   - supporting signals  
+   - risks  
+   - retrieved context  
+   - tool trace (full transparency)  
+
+---
 
 ## Key Skills Demonstrated
 
-- Backend system design (FastAPI, modular architecture)
-- Building agent-style orchestration without frameworks
-- Retrieval-Augmented Generation (RAG) fundamentals
-- Deterministic financial analytics
-- API design and validation with Pydantic
-- Testing (unit + integration)
-- Evaluation of AI systems
+**Backend & Engineering**
+- FastAPI service design  
+- Pydantic validation  
+- modular architecture  
+- Docker-ready service  
 
-## Current Features
+**Data Science**
+- financial time-series analysis  
+- feature computation (returns, volatility, momentum)  
+- signal interpretation  
 
-- `app/tools/market_data.py`
-  Fetches and normalizes ETF OHLCV history.
-- `app/tools/analytics.py`
-  Computes simple returns, log returns, rolling volatility, momentum, drawdown, and max drawdown.
-- `app/rag/ingest.py`
-  Loads local `.txt` and `.md` documents and builds simple overlapping chunks.
-- `app/rag/retriever.py`
-  Ranks chunks with deterministic lexical overlap scoring.
-- `app/llm/agent.py`
-  Orchestrates retrieval plus deterministic analytics into a structured answer.
-- `app/llm/client.py`
-  Optionally calls an OpenAI-compatible endpoint for grounded answer generation and falls back to deterministic output when no API key is configured.
-- `app/llm/evaluator.py`
-  Evaluates agent runs with lightweight local checks.
-- `app/api/routes.py`
-  Exposes `GET /health` and `POST /ask`.
+**GenAI / NLP**
+- Retrieval-Augmented Generation (RAG)  
+- prompt construction  
+- grounded answer generation  
+- safe LLM fallback design  
+- evaluation of AI outputs  
+
+**Systems Thinking**
+- deterministic-first design  
+- inspectable agent orchestration  
+- failure-safe LLM integration  
+
+---
 
 ## Project Structure
 
@@ -82,6 +130,7 @@ app/
     routes.py
   llm/
     agent.py
+    client.py
     evaluator.py
     prompts.py
   rag/
@@ -91,6 +140,7 @@ app/
     analytics.py
     market_data.py
   main.py
+
 tests/
   test_agent.py
   test_analytics.py
@@ -101,24 +151,24 @@ tests/
   test_rag_retriever.py
 ```
 
+---
+
 ## Setup
 
 Use Python 3.11.
 
-### Create an environment
+### Create environment
 
 ```bash
 python -m venv .venv
 ```
 
-Windows PowerShell:
-
+**Windows**
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
-macOS/Linux:
-
+**macOS/Linux**
 ```bash
 source .venv/bin/activate
 ```
@@ -129,17 +179,11 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Environment Setup
+---
 
-Copy `.env.example` to `.env` if you want a local environment file:
+## Environment Configuration
 
-```bash
-cp .env.example .env
-```
-
-Current runtime configuration is intentionally minimal. No live provider key is required for the implemented phases.
-
-Optional provider-backed answer generation can be enabled with:
+Optional LLM integration:
 
 ```bash
 export OPENAI_API_KEY=your_api_key
@@ -147,51 +191,32 @@ export OPENAI_MODEL=gpt-4o-mini
 export OPENAI_BASE_URL=https://api.openai.com/v1/chat/completions
 ```
 
-## Run Locally
+If not provided → system runs fully deterministic.
 
-Start the API with Uvicorn:
+---
+
+## Run Locally
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Run Tests
+Open:
+```
+http://127.0.0.1:8000/docs
+```
 
-Run the full local test suite:
+---
+
+## Run Tests
 
 ```bash
 python -m unittest discover -s tests
 ```
 
-## Run with Docker
+---
 
-Build the image:
-
-```bash
-docker build -t financial-agent .
-
-
-## API Usage
-
-### Health Check
-
-Request:
-
-```bash
-curl http://127.0.0.1:8000/health
-```
-
-Example response:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-### Ask Endpoint
-
-Request:
+## Quick Manual Test
 
 ```bash
 curl -X POST http://127.0.0.1:8000/ask \
@@ -199,86 +224,93 @@ curl -X POST http://127.0.0.1:8000/ask \
   -d '{
     "question": "What signals matter for this ETF?",
     "price_data": [
-      {"date": "2024-01-01", "close": 100.0, "symbol": "SPY"},
-      {"date": "2024-01-02", "close": 102.0, "symbol": "SPY"},
-      {"date": "2024-01-03", "close": 101.0, "symbol": "SPY"},
-      {"date": "2024-01-04", "close": 104.0, "symbol": "SPY"},
-      {"date": "2024-01-05", "close": 106.0, "symbol": "SPY"}
+      {"date": "2024-01-01", "close": 100.0},
+      {"date": "2024-01-02", "close": 102.0},
+      {"date": "2024-01-03", "close": 101.0},
+      {"date": "2024-01-04", "close": 104.0},
+      {"date": "2024-01-05", "close": 106.0}
     ],
     "chunks": [
       {
         "chunk_id": "chunk-1",
         "source": "doc1.txt",
-        "text": "ETF momentum improved as inflows increased this week.",
-        "metadata": {"file_name": "doc1.txt"}
-      },
-      {
-        "chunk_id": "chunk-2",
-        "source": "doc2.txt",
-        "text": "Drawdown risk remains manageable for diversified ETFs.",
-        "metadata": {"file_name": "doc2.txt"}
+        "text": "ETF momentum improved this week.",
+        "metadata": {}
       }
     ],
     "top_k": 2
   }'
 ```
 
-Response shape:
+If response contains:
+- summary  
+- signals  
+- tool_trace  
 
-```json
-{
-  "question": "What signals matter for this ETF?",
-  "summary": "Latest close is 106.00. ...",
-  "supporting_signals": ["..."],
-  "risks": ["..."],
-  "retrieved_context": [
-    {
-      "chunk_id": "chunk-1",
-      "source": "doc1.txt",
-      "score": 0.5,
-      "text": "ETF momentum improved as inflows increased this week."
-    }
-  ],
-  "tool_trace": [
-    {
-      "step": "validate_question",
-      "status": "completed",
-      "details": "Validated non-empty user question."
-    }
-  ]
-}
+→ everything works correctly.
+
+---
+
+## Docker
+
+Build:
+
+```bash
+docker build -t financial-agent .
 ```
 
-## Evaluation Overview
+Run:
 
-`app/llm/evaluator.py` provides a small local evaluation layer for the current agent. It checks:
-- whether the orchestration completed successfully
-- whether a summary is present
-- whether a tool trace exists
-- how many supporting signals, risks, and retrieved context items were produced
-- whether expected tool steps matched, when provided
+```bash
+docker run -p 8000:8000 financial-agent
+```
 
-This is intentionally a practical utility for regression checks, not a benchmarking framework.
+---
+
+## Evaluation
+
+`app/llm/evaluator.py` provides local evaluation utilities:
+
+Checks:
+- successful execution  
+- summary presence  
+- tool trace integrity  
+- signal and risk generation  
+- expected orchestration steps  
+
+This is a **practical regression tool**, not a benchmarking framework.
+
+---
 
 ## Current Limitations
 
-- Retrieval is simple lexical overlap, not embedding-based semantic search.
-- Provider-backed answer generation is optional and only runs when environment configuration is supplied.
-- The API expects callers to provide price data and chunks directly.
-- The current answer synthesis is deterministic and intentionally conservative.
-- No persistence layer or production deployment configuration is included beyond the simple local container.
+- retrieval = lexical only (no embeddings)  
+- no vector database  
+- API requires pre-supplied data  
+- deterministic summaries are intentionally simple  
+- no production infra (CI/CD, cloud deployment)  
+
+---
 
 ## Next Steps
 
-- add a local vector store or embedding-backed retrieval layer
-- integrate an LLM provider behind the existing orchestration boundary
-- add richer evaluation cases and datasets
-- expand API schemas and error reporting as the service surface grows
+- embedding-based retrieval (FAISS / vector DB)  
+- LLM abstraction layer  
+- richer evaluation datasets  
+- cloud deployment (GCP / AWS)  
+- streaming responses  
+
+---
 
 ## Development Approach
 
-This project was developed with the assistance of generative AI tools for iterative coding and refinement.
+This project was built with **assistance from generative AI tools** for iteration and speed.
 
-The system design, architecture, and implementation decisions were driven intentionally, with a focus on clarity, testability, and avoiding unnecessary abstraction.
+All key decisions (architecture, validation, system boundaries) were made intentionally with focus on:
+- clarity  
+- correctness  
+- minimalism  
+- avoiding overengineering  
 
-AGENTS.md - https://github.com/Eldor-Utabekov/agentic-financial-analyst/blob/main/AGENTS.md
+AGENTS.md  
+https://github.com/Eldor-Utabekov/agentic-financial-analyst/blob/main/AGENTS.md
